@@ -595,11 +595,7 @@ def getNTLMSSPType1(workstation='', domain='', signingRequired = False, use_ntlm
     # We're not adding workstation / domain fields this time. Normally Windows clients don't add such information but,
     # we will save the workstation name to be used later.
     #auth.setWorkstation(platform.node().upper())
-    prefix = "DESKTOP-"
-    characters = string.ascii_uppercase + string.digits
-    random_chars = ''.join(random.choice(characters) for _ in range(7))
-    workstation = prefix + random_chars
-    auth.setWorkstation(workstation)
+    auth.setWorkstation('DESKTOP-' + ''.join(random.choices(string.ascii_uppercase + string.digits, k=7)))
 
     return auth
 
