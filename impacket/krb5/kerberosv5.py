@@ -22,6 +22,7 @@ import random
 import socket
 import struct
 
+from os import environ
 from pyasn1.codec.der import decoder, encoder
 from pyasn1.error import PyAsn1Error
 from pyasn1.type.univ import noValue, Sequence
@@ -433,10 +434,11 @@ def getKerberosTGS(serverName, domain, kdcHost, tgt, cipher, sessionKey, renew =
     reqBody = seq_set(tgsReq, 'req-body')
 
     opts = list()
-    opts.append( constants.KDCOptions.forwardable.value )
-    opts.append( constants.KDCOptions.renewable.value )
-    opts.append( constants.KDCOptions.renewable_ok.value )
-    opts.append( constants.KDCOptions.canonicalize.value )
+    for flag in tgsflags:
+        try:
+            opts.append( getattr(constants.KDCOptions,flag).value )
+        except AttributeError:
+            LOG.error(f"{flag} is not a TGS valid flag.")
 
     if renew == True:
         opts.append( constants.KDCOptions.renew.value )
