@@ -156,7 +156,7 @@ def getKerberosTGT(clientName, password, domain, lmhash, nthash, aesKey='', kdcH
 
     reqBody['realm'] = domain
 
-    now = datetime.datetime.utcnow() + datetime.timedelta(days=1)
+    now = datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(days=1)
     reqBody['till'] = KerberosTime.to_asn1(now)
     reqBody['rtime'] = KerberosTime.to_asn1(now)
     reqBody['nonce'] =  rand.getrandbits(31)
@@ -267,7 +267,7 @@ def getKerberosTGT(clientName, password, domain, lmhash, nthash, aesKey='', kdcH
         # Let's build the timestamp
         timeStamp = PA_ENC_TS_ENC()
 
-        now = datetime.datetime.utcnow()
+        now = datetime.datetime.now(datetime.timezone.utc)
         timeStamp['patimestamp'] = KerberosTime.to_asn1(now)
         timeStamp['pausec'] = now.microsecond
 
@@ -313,7 +313,7 @@ def getKerberosTGT(clientName, password, domain, lmhash, nthash, aesKey='', kdcH
 
         reqBody['realm'] =  domain
 
-        now = datetime.datetime.utcnow() + datetime.timedelta(days=1)
+        now = datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(days=1)
         reqBody['till'] = KerberosTime.to_asn1(now)
         reqBody['rtime'] =  KerberosTime.to_asn1(now)
         reqBody['nonce'] = rand.getrandbits(31)
@@ -404,7 +404,7 @@ def getKerberosTGS(serverName, domain, kdcHost, tgt, cipher, sessionKey, renew =
 
     seq_set(authenticator, 'cname', clientName.components_to_asn1)
 
-    now = datetime.datetime.utcnow()
+    now = datetime.datetime.now(datetime.timezone.utc)
     authenticator['cusec'] =  now.microsecond
     authenticator['ctime'] = KerberosTime.to_asn1(now)
 
@@ -447,7 +447,7 @@ def getKerberosTGS(serverName, domain, kdcHost, tgt, cipher, sessionKey, renew =
     seq_set(reqBody, 'sname', serverName.components_to_asn1)
     reqBody['realm'] = domain
 
-    now = datetime.datetime.utcnow() + datetime.timedelta(days=1)
+    now = datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(days=1)
 
     reqBody['till'] = KerberosTime.to_asn1(now)
     reqBody['nonce'] = rand.getrandbits(31)
@@ -528,7 +528,7 @@ def getKerberosType3(cipher, sessionKey, auth_data):
     encAPRepPart['subkey'].clear()
     encAPRepPart = encAPRepPart.clone()
 
-    now = datetime.datetime.utcnow()
+    now = datetime.datetime.now(datetime.timezone.utc)
     encAPRepPart['cusec'] = now.microsecond
     encAPRepPart['ctime'] = KerberosTime.to_asn1(now)
     encAPRepPart['seq-number'] = sequenceNumber
@@ -654,7 +654,7 @@ def getKerberosType1(username, password, domain, lmhash, nthash, aesKey='', TGT 
     authenticator['authenticator-vno'] = 5
     authenticator['crealm'] = domain
     seq_set(authenticator, 'cname', userName.components_to_asn1)
-    now = datetime.datetime.utcnow()
+    now = datetime.datetime.now(datetime.timezone.utc)
 
     authenticator['cusec'] = now.microsecond
     authenticator['ctime'] = KerberosTime.to_asn1(now)
