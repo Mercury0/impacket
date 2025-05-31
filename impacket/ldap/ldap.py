@@ -79,6 +79,8 @@ RE_ATTRIBUTE = re.compile(rf'^{ATTRIBUTE}$', re.I)
 RE_EX_ATTRIBUTE_1 = re.compile(rf'^{ATTRIBUTE}{DN}?{MATCHING_RULE}?$', re.I)
 RE_EX_ATTRIBUTE_2 = re.compile(rf'^(){{0}}{DN}?{MATCHING_RULE}$', re.I)
 
+MAX_INT32 = 2**31 - 1
+
 
 class LDAPConnection:
     def __init__(self, url, baseDN='', dstIp=None, signing=True):
@@ -140,7 +142,7 @@ class LDAPConnection:
         except OSError as e:
             raise OSError(f"Connection error ({targetHost}:{self._dstPort})") from e
 
-        if self._SSL is False:
+        if not self._SSL:
             self._socket.connect(sa)
         else:
             # Switching to TLS now
@@ -276,7 +278,6 @@ class LDAPConnection:
         chkField['Flags'] = GSS_C_SEQUENCE_FLAG | GSS_C_REPLAY_FLAG
 
         # If TLS is used, setup channel binding
-        
         if self._SSL and self.__channel_binding_value is not None:
             chkField['Bnd'] = self.__channel_binding_value
         if self.__signing:
@@ -448,8 +449,7 @@ class LDAPConnection:
 
         if response['bindResponse']['resultCode'] != ResultCode('success'):
             raise LDAPSessionError(
-                errorString='Error in bindRequest -> {}: {}'.format(response['bindResponse']['resultCode'].prettyPrint(),
-                                                                response['bindResponse']['diagnosticMessage'])
+                errorString=f"Error in bindRequest -> {response['bindResponse']['resultCode'].prettyPrint()}: {response['bindResponse']['diagnosticMessage']}"
             )
         
         self.__auth_type = f"NTLM-{authenticationChoice}"
@@ -466,7 +466,7 @@ class LDAPConnection:
             data = signature.getData() + data
             data = len(data).to_bytes(4, byteorder='big', signed=False) + data
         else:
-            raise (f"Encryption not implemented for {self.__auth_type} protocol")
+            raise NotImplementedError(f"Encryption not implemented for {self.__auth_type} protocol")
         return data
 
     def decrypt(self, data):
@@ -477,7 +477,7 @@ class LDAPConnection:
             data = data[4:]
             signature, data = self.__spnego_cipher_blob.decrypt(data)
         else:
-            raise (f"Decryption not implemented for {self.__auth_type} protocol")
+            raise NotImplementedError(f"Decryption not implemented for {self.__auth_type} protocol")
         return data
 
     def search(self, searchBase=None, scope=None, derefAliases=None, sizeLimit=0, timeLimit=0, typesOnly=False,
@@ -514,8 +514,7 @@ class LDAPConnection:
                     else:
                         raise LDAPSearchError(
                             error=int(searchResult['resultCode']),
-                            errorString='Error in searchRequest -> {}: {}'.format(searchResult['resultCode'].prettyPrint(),
-                                                                              searchResult['diagnosticMessage']),
+                            errorString=f"Error in searchRequest -> {searchResult['resultCode'].prettyPrint()}: {searchResult['diagnosticMessage']}",
                             answers=answers
                         )
                 else:
@@ -548,11 +547,13 @@ class LDAPConnection:
 
     def close(self):
         if self._socket is not None:
-            self._socket.close()
+            with contextlib.suppress(Exception):
+                self._socket.close()
+            self._socket = None
 
     def send(self, request, controls=None):
         message = LDAPMessage()
-        message['messageID'] = random.randrange(1, 2147483647)
+        message['messageID'] = random.randint(1, MAX_INT32)
         message['protocolOp'].setComponentByType(request.getTagSet(), request)
         if controls is not None:
             message['controls'].setComponents(*controls)
@@ -592,26 +593,33 @@ class LDAPConnection:
     def recv(self):
         response = []
         data = self.recv_raw()
-        while len(data) > 0:
+
+        while data:
             try:
-                # need to decrypt before
                 message, remaining = decoder.decode(data, asn1Spec=LDAPMessage())
             except SubstrateUnderrunError:
-                # We need more data
-                remaining = data + self.recv_raw() 
-            else:
-                if message['messageID'] == 0:  # unsolicited notification
-                    name = message['protocolOp']['extendedResp']['responseName'] or message['responseName']
-                    notification = KNOWN_NOTIFICATIONS.get(name, f"Unsolicited Notification '{name}'")
-                    if name == NOTIFICATION_DISCONNECT:  # Server has disconnected
-                        self.close()
-                    raise LDAPSessionError(
-                        error=int(message['protocolOp']['extendedResp']['resultCode']),
-                        errorString='{} -> {}: {}'.format(notification,
-                                                      message['protocolOp']['extendedResp']['resultCode'].prettyPrint(),
-                                                      message['protocolOp']['extendedResp']['diagnosticMessage'])
-                    )
-                response.append(message)
+                data += self.recv_raw()
+                continue
+
+            if getattr(message, 'messageID', None) == 0:
+                protocol_op = message['protocolOp']
+                ext_resp = protocol_op.get('extendedResp', {})
+                name = ext_resp.get('responseName') or getattr(message, 'responseName', None)
+                notification = KNOWN_NOTIFICATIONS.get(name, f"Unsolicited Notification '{name}'")
+                if name == NOTIFICATION_DISCONNECT:
+                    self.close()
+                result_code = ext_resp.get('resultCode', 0)
+                diagnostic_message = ext_resp.get('diagnosticMessage', '')
+
+                # Use ternary operator for the linter (SIM108)
+                rc_str = result_code.prettyPrint() if hasattr(result_code, "prettyPrint") else str(result_code)
+
+                raise LDAPSessionError(
+                    error=int(result_code) if isinstance(result_code, int) or result_code is None else 0,
+                    errorString=f"{notification} -> {rc_str}: {diagnostic_message}",
+                )
+
+            response.append(message)
             data = remaining
 
         return response
