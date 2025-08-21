@@ -28,6 +28,7 @@ import struct
 import socket
 from binascii import unhexlify
 import random
+import six
 
 from pyasn1.codec.ber import encoder, decoder
 from pyasn1.error import SubstrateUnderrunError
@@ -480,8 +481,13 @@ class LDAPConnection:
             raise NotImplementedError(f"Decryption not implemented for {self.__auth_type} protocol")
         return data
 
+    #  searchFilter expects a string (not bytes), otherwise it will raise an exception
     def search(self, searchBase=None, scope=None, derefAliases=None, sizeLimit=0, timeLimit=0, typesOnly=False,
                searchFilter='(objectClass=*)', attributes=None, searchControls=None, perRecordCallback=None):
+
+        if not isinstance(searchFilter, six.text_type):
+            raise LDAPFilterInvalidException("searchFilter must be %s, got %s" % (six.text_type, type(searchFilter)))
+
         if searchBase is None:
             searchBase = self._baseDN
         if scope is None:
@@ -629,11 +635,17 @@ class LDAPConnection:
         return self.recv()
 
     def _parseFilter(self, filterStr):
-        with contextlib.suppress(AttributeError):
-            filterStr = filterStr.decode()
+        # Normalize to str (LDAP filters are UTF-8 per RFC 4515)
+        if isinstance(filterStr, (bytes, bytearray)):
+            try:
+                filterStr = filterStr.decode("utf-8")
+            except UnicodeDecodeError:
+                filterStr = filterStr.decode("latin-1", errors="ignore")
+
+        # Now filterStr is str; reversal yields a list of single-char strings
         filterList = list(reversed(filterStr))
         searchFilter = self._consumeCompositeFilter(filterList)
-        if filterList:  # we have not consumed the whole filter string
+        if filterList:  # not fully consumed
             raise LDAPFilterSyntaxError(f"unexpected token: '{filterList[-1]}'")
         return searchFilter
 

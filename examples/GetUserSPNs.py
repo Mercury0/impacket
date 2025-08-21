@@ -238,14 +238,10 @@ class GetUserSPNs:
 
         # Building the search filter
         filter_spn = "servicePrincipalName=*"
-        #filter_person = "objectCategory=person"
         filter_encryption = "(&(!(msds-supportedencryptiontypes:1.2.840.113556.1.4.804:=16))(!(msds-supportedencryptiontypes:1.2.840.113556.1.4.804:=8)))"
-        filter_not_disabled = "!(userAccountControl:1.2.840.113556.1.4.803:=2)"
 
         searchFilter = "(&"
         searchFilter += filter_encryption
-        #searchFilter += "(" + filter_person + ")"
-        #searchFilter += "(" + filter_not_disabled + ")"
 
         if self.__stealth is True:
             logging.warning('Stealth option may cause huge memory consumption / out-of-memory errors on very large domains.')

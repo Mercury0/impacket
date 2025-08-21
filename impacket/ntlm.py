@@ -149,6 +149,9 @@ NTLMSSP_NEGOTIATE_OEM_DOMAIN_SUPPLIED      = 0x00001000
 # If set, the connection SHOULD be anonymous
 NTLMSSP_NEGOTIATE_ANONYMOUS                = 0x00000800
 
+# Flags used by Responder to drop SSP (little endian)
+NTLMSSP_DROP_SSP_STATIC                    = 0xe2818215
+
 # If set, LM authentication is not allowed and only NT authentication is used.
 NTLMSSP_NEGOTIATE_NT_ONLY                  = 0x00000400
 
@@ -193,6 +196,11 @@ NTLM_NEGOTIATE_OEM                         = 0x00000002
 
 # If set, requests Unicode character set encoding. An alternate name for this field is NTLMSSP_NEGOTIATE_UNICODE.
 NTLMSSP_NEGOTIATE_UNICODE                  = 0x00000001
+
+# NTLMSSP Message Types
+NTLMSSP_AUTH_NEGOTIATE          = 0x01
+NTLMSSP_AUTH_CHALLENGE          = 0x02
+NTLMSSP_AUTH_CHALLENGE_RESPONSE = 0x03
 
 # AV_PAIR constants
 NTLMSSP_AV_EOL              = 0x00
