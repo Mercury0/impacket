@@ -72,7 +72,7 @@ Setup
 
 In order to grab the latest stable release run:
 
-    python3 -m pipx install impacket
+    pipx install git+https://github.com/Mercury0/impacket
 
 If you want to play with the unreleased changes, download the development 
 version from the [master branch](https://github.com/fortra/impacket/tree/master),
