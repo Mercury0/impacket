@@ -81,16 +81,6 @@ directory where Impacket has been unpacked:
 
     python3 -m pipx install .
 
-### Docker Support
-
-Build Impacket's image:
-
-      $ docker build -t "impacket:latest" .
-
-Using Impacket's image:
-
-      $ docker run -it --rm "impacket:latest"
-
 Testing
 =======
 
